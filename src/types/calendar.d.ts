@@ -184,6 +184,7 @@ export interface DateFormatOptions {
   includeWeekday?: boolean;
   includeYear?: boolean;
   format?: 'short' | 'long' | 'numeric';
+  timeOnly?: boolean;
 }
 
 // Calendar Variants System

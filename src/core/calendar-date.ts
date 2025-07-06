@@ -43,7 +43,13 @@ export class CalendarDate implements ICalendarDate {
       includeWeekday = true,
       includeYear = true,
       format = 'long',
+      timeOnly = false,
     } = options;
+
+    // If timeOnly is requested, return just the time string
+    if (timeOnly) {
+      return this.time ? this.getTimeString() : '';
+    }
 
     const parts: string[] = [];
 

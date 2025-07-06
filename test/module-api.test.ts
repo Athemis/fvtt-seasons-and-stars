@@ -23,17 +23,30 @@ describe('Module API Methods', () => {
       }),
     };
 
-    // Mock calendar
+    // Mock calendar with complete structure for real CalendarDate
     mockCalendar = {
       id: 'test-calendar',
+      name: 'Test Calendar',
       months: [
-        { name: 'January' },
-        { name: 'February' },
-        { name: 'March' },
-        { name: 'April' },
-        { name: 'May' },
-        { name: 'June' },
+        { name: 'January', abbreviation: 'Jan', days: 31 },
+        { name: 'February', abbreviation: 'Feb', days: 28 },
+        { name: 'March', abbreviation: 'Mar', days: 31 },
+        { name: 'April', abbreviation: 'Apr', days: 30 },
+        { name: 'May', abbreviation: 'May', days: 31 },
+        { name: 'June', abbreviation: 'Jun', days: 30 },
       ],
+      weekdays: [
+        { name: 'Monday', abbreviation: 'Mon' },
+        { name: 'Tuesday', abbreviation: 'Tue' },
+        { name: 'Wednesday', abbreviation: 'Wed' },
+        { name: 'Thursday', abbreviation: 'Thu' },
+        { name: 'Friday', abbreviation: 'Fri' },
+        { name: 'Saturday', abbreviation: 'Sat' },
+        { name: 'Sunday', abbreviation: 'Sun' },
+      ],
+      year: { prefix: '', suffix: '' },
+      intercalary: [],
+      leapYear: { enabled: false },
     };
 
     // Mock calendar manager
@@ -49,13 +62,8 @@ describe('Module API Methods', () => {
       engines: new Map([['test-calendar', mockEngine]]),
     };
 
-    // Mock CalendarDate class
-    const MockCalendarDate = vi.fn().mockImplementation((date, calendar) => ({
-      year: date.year,
-      month: date.month,
-      day: date.day,
-      format: vi.fn().mockReturnValue('15 June 2024'),
-    }));
+    // Use real CalendarDate class for integration testing
+    const { CalendarDate } = await import('../src/core/calendar-date');
 
     // Setup global game object with S&S API
     global.game = {
@@ -68,12 +76,6 @@ describe('Module API Methods', () => {
     // Import the module to get the API - need to do this after mocking
     // Since the module sets up the API when imported
     const { APIWrapper } = await import('../src/core/api-wrapper');
-    const { CalendarDate } = await import('../src/core/calendar-date');
-
-    // Mock CalendarDate
-    vi.doMock('../src/core/calendar-date', () => ({
-      CalendarDate: MockCalendarDate,
-    }));
 
     seasonsStarsAPI = {
       advanceDays: async (days: number, calendarId?: string): Promise<void> => {
@@ -285,9 +287,11 @@ describe('Module API Methods', () => {
   describe('Date Conversion Methods', () => {
     describe('formatDate', () => {
       it('should format date successfully', () => {
-        const date = { year: 2024, month: 6, day: 15 };
+        const date = { year: 2024, month: 6, day: 15, weekday: 2 };
         const result = seasonsStarsAPI.formatDate(date);
-        expect(result).toBe('15 June 2024');
+        expect(result).toContain('June');
+        expect(result).toContain('2024');
+        expect(result).toContain('15');
       });
 
       it('should validate date parameter', () => {
@@ -304,8 +308,57 @@ describe('Module API Methods', () => {
 
       it('should handle missing active calendar', () => {
         mockCalendarManager.getActiveCalendar.mockReturnValueOnce(null);
-        const date = { year: 2024, month: 6, day: 15 };
+        const date = { year: 2024, month: 6, day: 15, weekday: 2 };
         expect(() => seasonsStarsAPI.formatDate(date)).toThrow('No active calendar set');
+      });
+
+      it('should format time only when timeOnly option is true', () => {
+        const date = {
+          year: 2024,
+          month: 6,
+          day: 15,
+          weekday: 2,
+          time: { hour: 14, minute: 30, second: 0 },
+        };
+        const result = seasonsStarsAPI.formatDate(date, { timeOnly: true });
+        expect(result).toBe('14:30:00');
+      });
+
+      it('should return empty string for timeOnly when no time is set', () => {
+        const date = { year: 2024, month: 6, day: 15, weekday: 2 };
+        const result = seasonsStarsAPI.formatDate(date, { timeOnly: true });
+        expect(result).toBe('');
+      });
+
+      it('should handle edge case time values with timeOnly', () => {
+        const date = {
+          year: 2024,
+          month: 6,
+          day: 15,
+          weekday: 2,
+          time: { hour: 0, minute: 0, second: 0 },
+        };
+        const result = seasonsStarsAPI.formatDate(date, { timeOnly: true });
+        expect(result).toBe('00:00:00');
+      });
+
+      it('should ignore other options when timeOnly is true', () => {
+        const date = {
+          year: 2024,
+          month: 6,
+          day: 15,
+          weekday: 2,
+          time: { hour: 23, minute: 59, second: 59 },
+        };
+        const result = seasonsStarsAPI.formatDate(date, {
+          timeOnly: true,
+          includeWeekday: true,
+          includeYear: true,
+          format: 'long',
+        });
+        expect(result).toBe('23:59:59');
+        expect(result).not.toContain('June');
+        expect(result).not.toContain('2024');
       });
     });
 
